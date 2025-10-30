@@ -1,0 +1,5 @@
+Demultiplekser:
+    - Nova struktura podataka koja opisuje jedan demultiplekser, potrebna polja za inicijalizaciju demuxa su mod u kojem radi na ulazu i na izlazu, i rezim filtriranja (kontinualni ili one shot)
+
+Kompajliranje:
+    - Moraju se uneti svi c fajlovi, primer: gcc main.c demux.c -o main

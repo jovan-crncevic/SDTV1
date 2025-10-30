@@ -4,5 +4,8 @@
 int main() {
   printf("Software demux simulation for digital television receiver\n");
 
+  Demux demux;
+  demux = DemuxInit(DIRECT, DIRECT, ONE_SHOT);
+
   return 0;
 }
