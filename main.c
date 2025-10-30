@@ -7,5 +7,7 @@ int main() {
   Demux demux;
   demux = DemuxInit(DIRECT, DIRECT, ONE_SHOT);
 
+  printf("Mod u kojem radi ovaj demux je %d\n", demux.input_mode);
+
   return 0;
 }
