@@ -2,4 +2,11 @@ Demultiplekser:
     - Nova struktura podataka koja opisuje jedan demultiplekser, potrebna polja za inicijalizaciju demuxa su mod u kojem radi na ulazu i na izlazu, i rezim filtriranja (kontinualni ili one shot)
 
 Kompajliranje:
-    - Moraju se uneti svi c fajlovi, primer: gcc main.c demux.c -o main
+    - Moraju se uneti svi c fajlovi, primer: gcc main.c demux.c
+
+Pitanja za profesora:
+    - Da li moramo koristiti TS Duck
+    - Koliko se puta filtrira TS, da li imamo PID PMT- a
+    - Koje sve kombinacije ulazno-izlaznih rezima demuxa obradjujemo
+    
+

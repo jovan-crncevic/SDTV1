@@ -18,5 +18,6 @@ typedef struct {
 } Demux;
 
 Demux DemuxInit(IO_Mode i_m, IO_Mode o_m, Filter_Mode f_m);
+int DemuxFilterTest();
 
 #endif
