@@ -1,7 +1,8 @@
 #include <stdio.h>
+#include "demux.h"
 
 int main() {
-  printf("Hello world!\n");
+  printf("Software demux simulation for digital television receiver\n");
 
   return 0;
 }
