@@ -4,9 +4,19 @@ Demultiplekser:
 Kompajliranje:
     - Moraju se uneti svi c fajlovi, primer: gcc main.c demux.c
 
-Pitanja za profesora:
-    - Da li moramo koristiti TS Duck
-    - Koliko se puta filtrira TS, da li imamo PID PMT- a
-    - Koje sve kombinacije ulazno-izlaznih rezima demuxa obradjujemo
-    
+Rezimi demuxa (ULAZ -> IZLAZ):
+    - Direktni -> Direktni:
+        Ulaz: upis iz fajla (npr. tuner.txt)
+        Izlaz: ispis u fajl (npr. decoder.txt)
 
+    - Direktni -> Memorijski:
+        Ulaz: upis iz fajla (npr. tuner.txt)
+        Izlaz: ispis u lokalnu memoriju (neki bafer)
+
+    - Memorijski -> Direktni:
+        Ulaz: upis iz lokalnog bafera
+        Izlaz: ispis u fajl (npr. decoder.txt)
+
+    - Memorijski -> Memorijski:
+        Ulaz: upis iz lokalnog bafera
+        Izlaz: ispis u lokalnu memoriju (neki bafer)
