@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include "demux.h"
+#include "memory.h"
 
 #define TS_PACKET_SIZE 188
 #define SYNC_BYTE 0x47
@@ -68,6 +70,34 @@ static int MemoryToDirect(int* pids, int pid_counter) {
 
 /* MEMORIJSKI REZIM NA ULAZU I MEMORIJSKI REZIM NA IZLAZU */
 static int MemoryToMemory(int* pids, int pid_counter) {
+    uint8_t* input_buffer = NULL;
+    long file_size;
+    uint8_t ts_packet[TS_PACKET_SIZE];
+
+    if (ReadFromMemory(&input_buffer, &file_size) != 1) return 0;
+
+    for (long i = 0; i < file_size; i += TS_PACKET_SIZE) {
+        for (long j = i; j < i + TS_PACKET_SIZE; j++) {
+            ts_packet[j - i] = input_buffer[j];
+            //printf("%02X ", input_buffer[j]);
+            //if ((j - i + 1) % 16 == 0) printf("\n");
+        }
+
+        for (int k = 0; k < pid_counter; k++) {
+            if (MatchCheck(ts_packet, pids[k])) {
+                printf("\nMatched packet #%d (PID 0x%04X)\n", i/TS_PACKET_SIZE+1, pids[k]);
+
+                for (int m = 0; m < TS_PACKET_SIZE; m++) {
+                    printf("%02X ", ts_packet[m]);
+                    if ((m + 1) % 16 == 0) printf("\n");
+                }
+            }
+        }
+    }
+    printf("\n");
+
+    free(input_buffer);
+
     return 1;
 }
 

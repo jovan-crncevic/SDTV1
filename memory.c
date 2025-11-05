@@ -23,7 +23,7 @@ int ReadFromMemory(uint8_t** input_buffer, long *file_size) {
     }
 
     fclose(file);
-    return 0;
+    return 1;
 }
 
 void WriteToMemory() {
