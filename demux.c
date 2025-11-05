@@ -5,6 +5,7 @@
 #define TS_PACKET_SIZE 188
 #define SYNC_BYTE 0x47
 
+/* INICIJALIZACIJA DEMULTIPLEKSERA */
 Demux DemuxInit(IO_Mode i_m, IO_Mode o_m, Filter_Mode f_m) {
     Demux demux;
     demux.input_mode = i_m;
@@ -14,35 +15,29 @@ Demux DemuxInit(IO_Mode i_m, IO_Mode o_m, Filter_Mode f_m) {
     return demux;
 }
 
-int MatchCheck(const uint8_t* packet, int target_pid)
-{
-    if (!packet || packet[0] != SYNC_BYTE)
-        return 0;
+/* PROVERAVANJE PODUDARANJA PAKETA I PID- A */
+static int MatchCheck(const uint8_t* packet, int target_pid) {
+    if (!packet || packet[0] != SYNC_BYTE) return 0;
 
     int pid = ((packet[1] & 0x1F) << 8) | packet[2];
     return pid == target_pid;
 }
 
-static void DirectToDirect(int* pids, int pid_counter, int* ret) {
+/* DIREKTNI REZIM NA ULAZU I DIREKTNI REZIM NA IZLAZU */
+static int DirectToDirect(int* pids, int pid_counter) {
     FILE *input_file = fopen("tuner.ts", "rb");
     FILE *output_file = fopen("ram.txt", "w");
 
-    if (!input_file || !output_file) {
-        perror("Error: Can't open/create file");
-        *ret = -1;
-        return;
-    }
+    if (!input_file || !output_file) return -2;
+
     uint8_t ts_packet[TS_PACKET_SIZE];
     int packet_count = 0, matched = 0;
 
-    while (fread(ts_packet, 1, TS_PACKET_SIZE, input_file) == TS_PACKET_SIZE)
-    {
+    while (fread(ts_packet, 1, TS_PACKET_SIZE, input_file) == TS_PACKET_SIZE) {
         packet_count++;
 
-        for (int i = 0; i < pid_counter; i++)
-        {
-            if (MatchCheck(ts_packet, pids[i]))
-            {
+        for (int i = 0; i < pid_counter; i++) {
+            if (MatchCheck(ts_packet, pids[i])) {
                 matched++;
                 fprintf(output_file, "\nMatched packet #%d (PID 0x%04X)\n", packet_count, pids[i]);
 
@@ -53,40 +48,37 @@ static void DirectToDirect(int* pids, int pid_counter, int* ret) {
             }
         }
     }
-    if (matched == 0)
-    {
-        fprintf(output_file, "\nGiven pid was not found\n");
-    }
-    else
-    {
-        fprintf(output_file, "\nTotal packets: %d, matched : %d\n", packet_count, matched);
-    }
 
     fclose(input_file);
     fclose(output_file);
 
-    *ret = 1;
+    if (!matched) return 0;
+    return 1;
 }
 
-static void DirectToMemory(int* ret) {
-    *ret = 2;
+/* DIREKTNI REZIM NA ULAZU I MEMORIJSKI REZIM NA IZLAZU */
+static int DirectToMemory(int* pids, int pid_counter) {
+    return 1;
 }
 
-static void MemoryToDirect(int* ret) {
-    *ret = 3;
+/* MEMORIJSKI REZIM NA ULAZU I DIREKTNI REZIM NA IZLAZU */
+static int MemoryToDirect(int* pids, int pid_counter) {
+    return 1;
 }
 
-static void MemoryToMemory(int* ret) {
-    *ret = 4;
+/* MEMORIJSKI REZIM NA ULAZU I MEMORIJSKI REZIM NA IZLAZU */
+static int MemoryToMemory(int* pids, int pid_counter) {
+    return 1;
 }
 
+/* GLOBALNA FUNKCIJA ZA FILTRIRANJE */
 int DemuxFilter(Demux demux, int* pids, int pid_counter) {
     int ret = -1;
 
-    if (demux.input_mode == 0 && demux.output_mode == 0) DirectToDirect(pids, pid_counter, &ret); 
-    else if (demux.input_mode == 0 && demux.output_mode == 1) DirectToMemory(&ret); 
-    else if (demux.input_mode == 1 && demux.output_mode == 0) MemoryToDirect(&ret); 
-    else if (demux.input_mode == 1 && demux.output_mode == 1) MemoryToMemory(&ret);
+    if (demux.input_mode == 0 && demux.output_mode == 0) ret = DirectToDirect(pids, pid_counter);
+    else if (demux.input_mode == 0 && demux.output_mode == 1) ret = DirectToMemory(pids, pid_counter); 
+    else if (demux.input_mode == 1 && demux.output_mode == 0) ret = MemoryToDirect(pids, pid_counter); 
+    else if (demux.input_mode == 1 && demux.output_mode == 1) ret = MemoryToMemory(pids, pid_counter);
 
     return ret;
 }
