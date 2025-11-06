@@ -4,9 +4,6 @@
 #include "demux.h"
 #include "memory.h"
 
-#define TS_PACKET_SIZE 188
-#define SYNC_BYTE 0x47
-
 /* INICIJALIZACIJA DEMULTIPLEKSERA */
 Demux DemuxInit(IO_Mode i_m, IO_Mode o_m, Filter_Mode f_m) {
     Demux demux;
@@ -28,9 +25,12 @@ static int MatchCheck(const uint8_t* packet, int target_pid) {
 /* DIREKTNI REZIM NA ULAZU I DIREKTNI REZIM NA IZLAZU */
 static int DirectToDirect(int* pids, int pid_counter, int is_one_shot) {
     FILE *input_file = fopen("tuner.ts", "rb");
-    FILE *output_file = fopen("ram.txt", "w");
-
-    if (!input_file || !output_file) return -2;
+    FILE *output_file = fopen("ram.ts", "w");
+    if (!input_file) return -2;
+    if (!output_file) {
+        fclose(input_file);
+        return -2;
+    }
 
     uint8_t ts_packet[TS_PACKET_SIZE];
     int matched = 0, stop = 0, section_bytes = 0, expected_length = -1;
@@ -40,9 +40,7 @@ static int DirectToDirect(int* pids, int pid_counter, int is_one_shot) {
             if (MatchCheck(ts_packet, pids[i])) {
                 matched++;
 
-                for (int j = 0; j < TS_PACKET_SIZE; j++) {
-                    fprintf(output_file, "%02X ", ts_packet[j]);
-                }
+                fwrite(ts_packet, 1, TS_PACKET_SIZE, output_file);
 
                 if (is_one_shot) {
                     int payload_size = TS_PACKET_SIZE - 4;
@@ -70,7 +68,6 @@ static int DirectToDirect(int* pids, int pid_counter, int is_one_shot) {
 /* DIREKTNI REZIM NA ULAZU I MEMORIJSKI REZIM NA IZLAZU */
 static int DirectToMemory(int* pids, int pid_counter, int is_one_shot) {
     FILE *input_file = fopen("tuner.ts", "rb");
-
     if (!input_file) return -2;
 
     fseek(input_file, 0, SEEK_END);
@@ -78,7 +75,10 @@ static int DirectToMemory(int* pids, int pid_counter, int is_one_shot) {
     fseek(input_file, 0, SEEK_SET);
 
     uint8_t* output_buffer = malloc(file_size);
-    if (!output_buffer) return -2;
+    if (!output_buffer) {
+        fclose(input_file);
+        return -2;
+    }
 
     uint8_t ts_packet[TS_PACKET_SIZE];
     int matched = 0, stop = 0, section_bytes = 0, expected_length = -1;
@@ -88,9 +88,7 @@ static int DirectToMemory(int* pids, int pid_counter, int is_one_shot) {
             if (MatchCheck(ts_packet, pids[i])) {
                 matched++;
 
-                for (int j = 0; j < TS_PACKET_SIZE; j++) {
-                    output_buffer[position++] = ts_packet[j];
-                }
+                WriteToMemory(output_buffer, &position, ts_packet);
 
                 if (is_one_shot) {
                     int payload_size = TS_PACKET_SIZE - 4;
@@ -124,8 +122,11 @@ static int MemoryToDirect(int* pids, int pid_counter, int is_one_shot) {
 
     if (ReadFromMemory(&input_buffer, &file_size) != 1) return 0;
 
-    FILE *output_file = fopen("ram.txt", "w");
-    if (!output_file) return -2;
+    FILE *output_file = fopen("ram.ts", "w");
+    if (!output_file) {
+        free(input_buffer);
+        return -2;
+    }
 
     for (long i = 0; i < file_size; i += TS_PACKET_SIZE) {
         if (stop) break;
@@ -136,9 +137,7 @@ static int MemoryToDirect(int* pids, int pid_counter, int is_one_shot) {
             if (MatchCheck(ts_packet, pids[k])) {
                 matched++;
 
-                for (int m = 0; m < TS_PACKET_SIZE; m++) {
-                    fprintf(output_file, "%02X ", ts_packet[m]);
-                }
+                fwrite(ts_packet, 1, TS_PACKET_SIZE, output_file);
 
                 if (is_one_shot) {
                     int payload_size = TS_PACKET_SIZE - 4;
@@ -187,9 +186,7 @@ static int MemoryToMemory(int* pids, int pid_counter, int is_one_shot) {
             if (MatchCheck(ts_packet, pids[k])) {
                 matched++;
 
-                for (int m = 0; m < TS_PACKET_SIZE; m++) {
-                    output_buffer[position++] = ts_packet[m];
-                }
+                WriteToMemory(output_buffer, &position, ts_packet);
 
                 if (is_one_shot) {
                     int payload_size = TS_PACKET_SIZE - 4;

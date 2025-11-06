@@ -1,6 +1,9 @@
 #ifndef DEMUX_H
 #define DEMUX_H
 
+#define TS_PACKET_SIZE 188
+#define SYNC_BYTE 0x47
+
 typedef enum {
     DIRECT = 0,
     MEMORY = 1

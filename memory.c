@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
+#include "demux.h"
 
 int ReadFromMemory(uint8_t** input_buffer, long *file_size) {
     FILE *file = fopen("tuner.ts", "rb");
@@ -26,6 +28,8 @@ int ReadFromMemory(uint8_t** input_buffer, long *file_size) {
     return 1;
 }
 
-void WriteToMemory() {
-
+int WriteToMemory(uint8_t* output_buffer, long* position, uint8_t* ts_packet) {
+    memcpy(&output_buffer[*position], ts_packet, TS_PACKET_SIZE);
+    *position += TS_PACKET_SIZE;
+    return 1;
 }
