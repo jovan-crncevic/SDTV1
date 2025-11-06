@@ -25,7 +25,7 @@ static int MatchCheck(const uint8_t* packet, int target_pid) {
 /* DIREKTNI REZIM NA ULAZU I DIREKTNI REZIM NA IZLAZU */
 static int DirectToDirect(int* pids, int pid_counter, int is_one_shot) {
     FILE *input_file = fopen("tuner.ts", "rb");
-    FILE *output_file = fopen("ram.ts", "w");
+    FILE *output_file = fopen("ram.ts", "wb");
     if (!input_file) return -2;
     if (!output_file) {
         fclose(input_file);
@@ -122,7 +122,7 @@ static int MemoryToDirect(int* pids, int pid_counter, int is_one_shot) {
 
     if (ReadFromMemory(&input_buffer, &file_size) != 1) return 0;
 
-    FILE *output_file = fopen("ram.ts", "w");
+    FILE *output_file = fopen("ram.ts", "wb");
     if (!output_file) {
         free(input_buffer);
         return -2;
