@@ -1,6 +1,6 @@
 #include <stdio.h>
-#include <stdint.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include "demux.h"
 #include "memory.h"
 
@@ -26,22 +26,36 @@ static int MatchCheck(const uint8_t* packet, int target_pid) {
 }
 
 /* DIREKTNI REZIM NA ULAZU I DIREKTNI REZIM NA IZLAZU */
-static int DirectToDirect(int* pids, int pid_counter) {
+static int DirectToDirect(int* pids, int pid_counter, int is_one_shot) {
     FILE *input_file = fopen("tuner.ts", "rb");
     FILE *output_file = fopen("ram.txt", "w");
 
     if (!input_file || !output_file) return -2;
 
     uint8_t ts_packet[TS_PACKET_SIZE];
-    int matched = 0;
+    int matched = 0, stop = 0, section_bytes = 0, expected_length = -1;
 
-    while (fread(ts_packet, 1, TS_PACKET_SIZE, input_file) == TS_PACKET_SIZE) {
+    while (fread(ts_packet, 1, TS_PACKET_SIZE, input_file) == TS_PACKET_SIZE && !stop) {
         for (int i = 0; i < pid_counter; i++) {
             if (MatchCheck(ts_packet, pids[i])) {
                 matched++;
 
                 for (int j = 0; j < TS_PACKET_SIZE; j++) {
                     fprintf(output_file, "%02X ", ts_packet[j]);
+                }
+
+                if (is_one_shot) {
+                    int payload_size = TS_PACKET_SIZE - 4;
+                    section_bytes += payload_size;
+
+                    if (expected_length < 0 && section_bytes >= 3) {
+                        expected_length = 3 + (((ts_packet[5] & 0x0F) << 8) | ts_packet[6]);
+                    }
+
+                    if (expected_length > 0 && section_bytes >= expected_length) {
+                        stop = 1;
+                        break;
+                    }
                 }
             }
         }
@@ -54,12 +68,12 @@ static int DirectToDirect(int* pids, int pid_counter) {
 }
 
 /* DIREKTNI REZIM NA ULAZU I MEMORIJSKI REZIM NA IZLAZU */
-static int DirectToMemory(int* pids, int pid_counter) {
+static int DirectToMemory(int* pids, int pid_counter, int is_one_shot) {
     return 1;
 }
 
 /* MEMORIJSKI REZIM NA ULAZU I DIREKTNI REZIM NA IZLAZU */
-static int MemoryToDirect(int* pids, int pid_counter) {
+static int MemoryToDirect(int* pids, int pid_counter, int is_one_shot) {
     uint8_t* input_buffer = NULL;
     long file_size;
     uint8_t ts_packet[TS_PACKET_SIZE];
@@ -91,7 +105,7 @@ static int MemoryToDirect(int* pids, int pid_counter) {
 }
 
 /* MEMORIJSKI REZIM NA ULAZU I MEMORIJSKI REZIM NA IZLAZU */
-static int MemoryToMemory(int* pids, int pid_counter) {
+static int MemoryToMemory(int* pids, int pid_counter, int is_one_shot) {
     uint8_t* input_buffer = NULL;
     long file_size, position = 0;
     uint8_t ts_packet[TS_PACKET_SIZE];
@@ -129,10 +143,10 @@ static int MemoryToMemory(int* pids, int pid_counter) {
 int DemuxFilter(Demux demux, int* pids, int pid_counter) {
     int ret = -1;
 
-    if (demux.input_mode == 0 && demux.output_mode == 0) ret = DirectToDirect(pids, pid_counter);
-    else if (demux.input_mode == 0 && demux.output_mode == 1) ret = DirectToMemory(pids, pid_counter); 
-    else if (demux.input_mode == 1 && demux.output_mode == 0) ret = MemoryToDirect(pids, pid_counter); 
-    else if (demux.input_mode == 1 && demux.output_mode == 1) ret = MemoryToMemory(pids, pid_counter);
+    if (demux.input_mode == 0 && demux.output_mode == 0) ret = DirectToDirect(pids, pid_counter, demux.filter_mode);
+    else if (demux.input_mode == 0 && demux.output_mode == 1) ret = DirectToMemory(pids, pid_counter, demux.filter_mode); 
+    else if (demux.input_mode == 1 && demux.output_mode == 0) ret = MemoryToDirect(pids, pid_counter, demux.filter_mode); 
+    else if (demux.input_mode == 1 && demux.output_mode == 1) ret = MemoryToMemory(pids, pid_counter, demux.filter_mode);
 
     return ret;
 }
