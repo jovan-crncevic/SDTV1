@@ -33,19 +33,15 @@ static int DirectToDirect(int* pids, int pid_counter) {
     if (!input_file || !output_file) return -2;
 
     uint8_t ts_packet[TS_PACKET_SIZE];
-    int packet_count = 0, matched = 0;
+    int matched = 0;
 
     while (fread(ts_packet, 1, TS_PACKET_SIZE, input_file) == TS_PACKET_SIZE) {
-        packet_count++;
-
         for (int i = 0; i < pid_counter; i++) {
             if (MatchCheck(ts_packet, pids[i])) {
                 matched++;
-                fprintf(output_file, "\nMatched packet #%d (PID 0x%04X)\n", packet_count, pids[i]);
 
                 for (int j = 0; j < TS_PACKET_SIZE; j++) {
                     fprintf(output_file, "%02X ", ts_packet[j]);
-                    if ((j + 1) % 16 == 0) fprintf(output_file, "\n");
                 }
             }
         }
@@ -54,8 +50,7 @@ static int DirectToDirect(int* pids, int pid_counter) {
     fclose(input_file);
     fclose(output_file);
 
-    if (!matched) return 0;
-    return 1;
+    return matched;
 }
 
 /* DIREKTNI REZIM NA ULAZU I MEMORIJSKI REZIM NA IZLAZU */
@@ -65,7 +60,34 @@ static int DirectToMemory(int* pids, int pid_counter) {
 
 /* MEMORIJSKI REZIM NA ULAZU I DIREKTNI REZIM NA IZLAZU */
 static int MemoryToDirect(int* pids, int pid_counter) {
-    return 1;
+    uint8_t* input_buffer = NULL;
+    long file_size;
+    uint8_t ts_packet[TS_PACKET_SIZE];
+    int matched = 0;
+
+    if (ReadFromMemory(&input_buffer, &file_size) != 1) return 0;
+
+    FILE *output_file = fopen("ram.txt", "w");
+    if (!output_file) return -2;
+
+    for (long i = 0; i < file_size; i += TS_PACKET_SIZE) {
+        for (long j = i; j < i + TS_PACKET_SIZE; j++) ts_packet[j - i] = input_buffer[j];
+
+        for (int k = 0; k < pid_counter; k++) {
+            if (MatchCheck(ts_packet, pids[k])) {
+                matched++;
+
+                for (int m = 0; m < TS_PACKET_SIZE; m++) {
+                    fprintf(output_file, "%02X ", ts_packet[m]);
+                }
+            }
+        }
+    }
+
+    free(input_buffer);
+    fclose(output_file);
+
+    return matched;
 }
 
 /* MEMORIJSKI REZIM NA ULAZU I MEMORIJSKI REZIM NA IZLAZU */
@@ -73,6 +95,7 @@ static int MemoryToMemory(int* pids, int pid_counter) {
     uint8_t* input_buffer = NULL;
     long file_size, position = 0;
     uint8_t ts_packet[TS_PACKET_SIZE];
+    int matched = 0;
 
     if (ReadFromMemory(&input_buffer, &file_size) != 1) return 0;
 
@@ -87,6 +110,8 @@ static int MemoryToMemory(int* pids, int pid_counter) {
 
         for (int k = 0; k < pid_counter; k++) {
             if (MatchCheck(ts_packet, pids[k])) {
+                matched++;
+
                 for (int m = 0; m < TS_PACKET_SIZE; m++) {
                     output_buffer[position++] = ts_packet[m];
                 }
@@ -94,18 +119,10 @@ static int MemoryToMemory(int* pids, int pid_counter) {
         }
     }
 
-    for (long i = 0; i < position; i++) {
-        printf("%02X ", output_buffer[i]);
-        if ((i + 1) % 16 == 0) printf("\n");
-        if ((i + 1) % TS_PACKET_SIZE == 0) printf("\n");
-    }
-
-    printf("\n");
-
     free(input_buffer);
     free(output_buffer);
 
-    return 1;
+    return matched;
 }
 
 /* GLOBALNA FUNKCIJA ZA FILTRIRANJE */

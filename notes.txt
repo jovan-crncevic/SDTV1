@@ -25,4 +25,4 @@ Povratne vrednosti funkcije DemuxFilter():
     -2      ->      Neuspesna komunikacija sa tunerom ili radnom memorijom (u slucaju nase simulacije neuspesno otvaranje fajla)
     -1      ->      Pogresno inicijalizovan demux
     0       ->      Nije pronadjen zadati PID u TS- u
-    1       ->      Uspesno zavrseno filtriranje
+    1+      ->      Broj pronadjenih paketa sa zadatim PID- ovima (uspesno filtriranje)
