@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <pthread.h>
+#include <unistd.h>
 #include "demux.h"
 
 int main(int argc, char** argv) {
@@ -23,10 +25,25 @@ int main(int argc, char** argv) {
   int pids[pid_count];
   for (int i = 0; i < pid_count; i++) pids[i] = atoi(argv[5 + i]);
   uint8_t *input_buffer = NULL, *output_buffer = NULL;
+  int packets_found;
 
-  /* POZIV GLAVNE FUNKCIJE ZA FILTRIRANJE */
-  int packets_found = DemuxFilter(demux, pids, pid_count, &input_buffer, &output_buffer);
-  printf("Total packets found: %d\n", packets_found);
+  /* POZIV THREAD FUNKCIJE ZA FILTRIRANJE I TESTIRANJE ASINHRONOSTI */
+  DemuxThreadArgs args = {
+      .demux = demux,
+      .pids = pids,
+      .pid_count = pid_count,
+      .input_buffer = &input_buffer,
+      .output_buffer = &output_buffer,
+      .packets_found = &packets_found
+  };
+  
+  pthread_t thread_id;
+  pthread_create(&thread_id, NULL, DemuxThreadFunction, &args);
+  pthread_detach(thread_id);
+
+  printf("DemuxFilter is working in background, I'm sleeping now\n");
+  sleep(5);
+  printf("Sleeping is done\n");
 
   /* PROVERA POSTOJANJA IZLAZNOG BAFERA I POTENCIJALNI ISPIS */
   if (output_buffer) {

@@ -20,7 +20,18 @@ typedef struct {
     Filter_Mode filter_mode;
 } Demux;
 
+typedef struct {
+    Demux demux;
+    int *pids;
+    int pid_count;
+    uint8_t **input_buffer;
+    uint8_t **output_buffer;
+    int* packets_found;
+} DemuxThreadArgs;
+
 Demux DemuxInit(IO_Mode i_m, IO_Mode o_m, Filter_Mode f_m);
-int DemuxFilter(Demux demux, int* pids, int pid_counter, uint8_t** input_buffer, uint8_t** output_buffer);
+void* DemuxThreadFunction(void* arg);
+
+//Ako radimo bez niti: int DemuxFilter(Demux demux, int* pids, int pid_counter, uint8_t** input_buffer, uint8_t** output_buffer);
 
 #endif

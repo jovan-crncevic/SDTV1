@@ -6,22 +6,24 @@ Kompajliranje:
 
 Rezimi demuxa (ULAZ -> IZLAZ):
     - Direktni -> Direktni:
-        Ulaz: upis iz fajla (npr. tuner.txt)
-        Izlaz: ispis u fajl (npr. decoder.txt)
+        Ulaz: upis iz fajla (npr. tuner.ts)
+        Izlaz: ispis u fajl (npr. ram.ts)
 
     - Direktni -> Memorijski:
-        Ulaz: upis iz fajla (npr. tuner.txt)
+        Ulaz: upis iz fajla (npr. tuner.ts)
         Izlaz: ispis u lokalnu memoriju (neki bafer)
 
     - Memorijski -> Direktni:
         Ulaz: upis iz lokalnog bafera
-        Izlaz: ispis u fajl (npr. decoder.txt)
+        Izlaz: ispis u fajl (npr. ram.ts)
 
     - Memorijski -> Memorijski:
         Ulaz: upis iz lokalnog bafera
         Izlaz: ispis u lokalnu memoriju (neki bafer)
 
 Povratne vrednosti funkcije DemuxFilter():
+    -4      ->      Neuspesno ucitavanje fajla u bafer
+    -3      ->      Neuspesno zauzimanje memorije
     -2      ->      Neuspesna komunikacija sa tunerom ili radnom memorijom (u slucaju nase simulacije neuspesno otvaranje fajla)
     -1      ->      Pogresno inicijalizovan demux
     0       ->      Nije pronadjen zadati PID u TS- u

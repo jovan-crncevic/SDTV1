@@ -119,7 +119,8 @@ static int MemoryToDirect(int* pids, int pid_counter, int is_one_shot, uint8_t**
     uint8_t ts_packet[TS_PACKET_SIZE];
     int matched = 0, stop = 0, section_bytes = 0, expected_length = -1;
 
-    if (ReadFromMemory(input_buffer, &file_size) != 1) return 0;
+    int ret = ReadFromMemory(input_buffer, &file_size);
+    if (ret != 1) return ret;
 
     FILE *output_file = fopen("ram.ts", "wb");
     if (!output_file) {
@@ -165,7 +166,8 @@ static int MemoryToMemory(int* pids, int pid_counter, int is_one_shot, uint8_t**
     uint8_t ts_packet[TS_PACKET_SIZE];
     int matched = 0, stop = 0, section_bytes = 0, expected_length = -1;
 
-    if (ReadFromMemory(input_buffer, &file_size) != 1) return 0;
+    int ret = ReadFromMemory(input_buffer, &file_size);
+    if (ret != 1) return ret;
 
     *output_buffer = malloc(file_size);
     if (!(*output_buffer)) {
@@ -204,7 +206,7 @@ static int MemoryToMemory(int* pids, int pid_counter, int is_one_shot, uint8_t**
 }
 
 /* GLOBALNA FUNKCIJA ZA FILTRIRANJE */
-int DemuxFilter(Demux demux, int* pids, int pid_counter, uint8_t** input_buffer, uint8_t** output_buffer) {
+static int DemuxFilter(Demux demux, int* pids, int pid_counter, uint8_t** input_buffer, uint8_t** output_buffer) {
     int ret = -1;
 
     if (demux.input_mode == 0 && demux.output_mode == 0) ret = DirectToDirect(pids, pid_counter, demux.filter_mode);
@@ -213,4 +215,43 @@ int DemuxFilter(Demux demux, int* pids, int pid_counter, uint8_t** input_buffer,
     else if (demux.input_mode == 1 && demux.output_mode == 1) ret = MemoryToMemory(pids, pid_counter, demux.filter_mode, input_buffer, output_buffer);
 
     return ret;
+}
+
+void* DemuxThreadFunction(void* arg) {
+    DemuxThreadArgs *args = (DemuxThreadArgs*)arg;
+
+    *(args->packets_found) = DemuxFilter(
+        args->demux,
+        args->pids,
+        args->pid_count,
+        args->input_buffer,
+        args->output_buffer
+    );
+
+    switch(*(args->packets_found)) {
+        case -4:
+            printf("Error: Can't load file to buffer\n");
+            break;
+
+        case -3:
+            printf("Error: Can't allocate memory\n");
+            break;
+
+        case -2:
+            printf("Error: Can't open file\n");
+            break;
+
+        case -1:
+            printf("Error: Demux initialization is wrong\n");
+            break;
+
+        case 0:
+            printf("Error: No packets with entered PID(s) found\n");
+            break;
+
+        default:
+            printf("Demux finished. Total packets found: %d\n", *(args->packets_found));
+    }
+
+    return NULL;
 }

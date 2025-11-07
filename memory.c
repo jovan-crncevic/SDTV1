@@ -15,13 +15,13 @@ int ReadFromMemory(uint8_t** input_buffer, long *file_size) {
     *input_buffer = malloc(*file_size);
     if (!(*input_buffer)) {
         fclose(file);
-        return -2;
+        return -3;
     }
 
     if (fread(*input_buffer, 1, *file_size, file) != *file_size) {
         free(*input_buffer);
         fclose(file);
-        return -3;
+        return -4;
     }
 
     fclose(file);
