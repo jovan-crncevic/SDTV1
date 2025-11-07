@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 #include "demux.h"
 #include "memory.h"
 
@@ -128,7 +129,7 @@ static int MemoryToDirect(int* pids, int pid_counter, int is_one_shot, uint8_t**
     for (long i = 0; i < file_size; i += TS_PACKET_SIZE) {
         if (stop) break;
 
-        for (long j = i; j < i + TS_PACKET_SIZE; j++) ts_packet[j - i] = (*input_buffer)[j];
+        memcpy(ts_packet, &(*input_buffer)[i], TS_PACKET_SIZE);
 
         for (int k = 0; k < pid_counter; k++) {
             if (MatchCheck(ts_packet, pids[k])) {
@@ -174,7 +175,7 @@ static int MemoryToMemory(int* pids, int pid_counter, int is_one_shot, uint8_t**
     for (long i = 0; i < file_size; i += TS_PACKET_SIZE) {
         if (stop) break;
 
-        for (long j = i; j < i + TS_PACKET_SIZE; j++) ts_packet[j - i] = (*input_buffer)[j];
+        memcpy(ts_packet, &(*input_buffer)[i], TS_PACKET_SIZE);
 
         for (int k = 0; k < pid_counter; k++) {
             if (MatchCheck(ts_packet, pids[k])) {
