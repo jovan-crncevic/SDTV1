@@ -21,6 +21,6 @@ typedef struct {
 } Demux;
 
 Demux DemuxInit(IO_Mode i_m, IO_Mode o_m, Filter_Mode f_m);
-int DemuxFilter(Demux demux, int* pids, int pid_counter);
+int DemuxFilter(Demux demux, int* pids, int pid_counter, uint8_t** input_buffer, uint8_t** output_buffer);
 
 #endif
