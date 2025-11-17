@@ -34,7 +34,7 @@ static int DirectToDirect(int* pids, int pid_counter, int is_one_shot) {
     }
 
     uint8_t ts_packet[TS_PACKET_SIZE];
-    int matched = 0, stop = 0, section_bytes = 0, expected_length = -1;
+    int matched = 0, stop = 0, collecting = 0, bytes_collected = 0, expected_length = -1;
 
     while (fread(ts_packet, 1, TS_PACKET_SIZE, input_file) == TS_PACKET_SIZE && !stop) {
         for (int i = 0; i < pid_counter; i++) {
@@ -44,14 +44,42 @@ static int DirectToDirect(int* pids, int pid_counter, int is_one_shot) {
                 fwrite(ts_packet, 1, TS_PACKET_SIZE, output_file);
 
                 if (is_one_shot) {
-                    int payload_size = TS_PACKET_SIZE - 4;
-                    section_bytes += payload_size;
-
-                    if (expected_length < 0 && section_bytes >= 3) {
-                        expected_length = 3 + (((ts_packet[5] & 0x0F) << 8) | ts_packet[6]);
+                    int adaptation_length = 0;
+                    if (ts_packet[3] & 0x20) {
+                        adaptation_length = 1 + ts_packet[4];
                     }
 
-                    if (expected_length > 0 && section_bytes >= expected_length) {
+                    int payload_offset = 4 + adaptation_length;
+                    if (payload_offset >= TS_PACKET_SIZE)
+                        break;
+
+                    if (ts_packet[1] & 0x40) {
+                        uint8_t pointer = ts_packet[payload_offset];
+                        payload_offset += 1 + pointer;
+
+                        collecting = 1;
+                        bytes_collected = 0;
+                        expected_length = -1;
+                    }
+
+                    if (!collecting)
+                        break;
+
+                    int payload_size = TS_PACKET_SIZE - payload_offset;
+                    if (payload_size <= 0)
+                        break;
+
+                    uint8_t *payload = ts_packet + payload_offset;
+
+                    if (expected_length < 0 && payload_size >= 3) {
+                        int section_length = ((payload[1] & 0x0F) << 8) | payload[2];
+                        expected_length = 3 + section_length;
+                        printf("DEBUG: Expected lenght is %d\n", expected_length);
+                    }
+
+                    bytes_collected += payload_size;
+
+                    if (expected_length > 0 && bytes_collected >= expected_length) {
                         stop = 1;
                         break;
                     }
@@ -82,7 +110,7 @@ static int DirectToMemory(int* pids, int pid_counter, int is_one_shot, uint8_t**
     }
 
     uint8_t ts_packet[TS_PACKET_SIZE];
-    int matched = 0, stop = 0, section_bytes = 0, expected_length = -1;
+    int matched = 0, stop = 0, collecting = 0, bytes_collected = 0, expected_length = -1;
 
     while (fread(ts_packet, 1, TS_PACKET_SIZE, input_file) == TS_PACKET_SIZE && !stop) {
         for (int i = 0; i < pid_counter; i++) {
@@ -92,14 +120,42 @@ static int DirectToMemory(int* pids, int pid_counter, int is_one_shot, uint8_t**
                 WriteToMemory(*output_buffer, &position, ts_packet);
 
                 if (is_one_shot) {
-                    int payload_size = TS_PACKET_SIZE - 4;
-                    section_bytes += payload_size;
-
-                    if (expected_length < 0 && section_bytes >= 3) {
-                        expected_length = 3 + (((ts_packet[5] & 0x0F) << 8) | ts_packet[6]);
+                    int adaptation_length = 0;
+                    if (ts_packet[3] & 0x20) {
+                        adaptation_length = 1 + ts_packet[4];
                     }
 
-                    if (expected_length > 0 && section_bytes >= expected_length) {
+                    int payload_offset = 4 + adaptation_length;
+                    if (payload_offset >= TS_PACKET_SIZE)
+                        break;
+
+                    if (ts_packet[1] & 0x40) {
+                        uint8_t pointer = ts_packet[payload_offset];
+                        payload_offset += 1 + pointer;
+
+                        collecting = 1;
+                        bytes_collected = 0;
+                        expected_length = -1;
+                    }
+
+                    if (!collecting)
+                        break;
+
+                    int payload_size = TS_PACKET_SIZE - payload_offset;
+                    if (payload_size <= 0)
+                        break;
+
+                    uint8_t *payload = ts_packet + payload_offset;
+
+                    if (expected_length < 0 && payload_size >= 3) {
+                        int section_length = ((payload[1] & 0x0F) << 8) | payload[2];
+                        expected_length = 3 + section_length;
+                        printf("DEBUG: Expected lenght is %d\n", expected_length);
+                    }
+
+                    bytes_collected += payload_size;
+
+                    if (expected_length > 0 && bytes_collected >= expected_length) {
                         stop = 1;
                         break;
                     }
@@ -117,7 +173,7 @@ static int DirectToMemory(int* pids, int pid_counter, int is_one_shot, uint8_t**
 static int MemoryToDirect(int* pids, int pid_counter, int is_one_shot, uint8_t** input_buffer) {
     long file_size;
     uint8_t ts_packet[TS_PACKET_SIZE];
-    int matched = 0, stop = 0, section_bytes = 0, expected_length = -1;
+    int matched = 0, stop = 0, collecting = 0, bytes_collected = 0, expected_length = -1;
 
     int ret = ReadFromMemory(input_buffer, &file_size);
     if (ret != 1) return ret;
@@ -139,14 +195,42 @@ static int MemoryToDirect(int* pids, int pid_counter, int is_one_shot, uint8_t**
                 fwrite(ts_packet, 1, TS_PACKET_SIZE, output_file);
 
                 if (is_one_shot) {
-                    int payload_size = TS_PACKET_SIZE - 4;
-                    section_bytes += payload_size;
-
-                    if (expected_length < 0 && section_bytes >= 3) {
-                        expected_length = 3 + (((ts_packet[5] & 0x0F) << 8) | ts_packet[6]);
+                    int adaptation_length = 0;
+                    if (ts_packet[3] & 0x20) {
+                        adaptation_length = 1 + ts_packet[4];
                     }
 
-                    if (expected_length > 0 && section_bytes >= expected_length) {
+                    int payload_offset = 4 + adaptation_length;
+                    if (payload_offset >= TS_PACKET_SIZE)
+                        break;
+
+                    if (ts_packet[1] & 0x40) {
+                        uint8_t pointer = ts_packet[payload_offset];
+                        payload_offset += 1 + pointer;
+
+                        collecting = 1;
+                        bytes_collected = 0;
+                        expected_length = -1;
+                    }
+
+                    if (!collecting)
+                        break;
+
+                    int payload_size = TS_PACKET_SIZE - payload_offset;
+                    if (payload_size <= 0)
+                        break;
+
+                    uint8_t *payload = ts_packet + payload_offset;
+
+                    if (expected_length < 0 && payload_size >= 3) {
+                        int section_length = ((payload[1] & 0x0F) << 8) | payload[2];
+                        expected_length = 3 + section_length;
+                        printf("DEBUG: Expected lenght is %d\n", expected_length);
+                    }
+
+                    bytes_collected += payload_size;
+
+                    if (expected_length > 0 && bytes_collected >= expected_length) {
                         stop = 1;
                         break;
                     }
@@ -164,7 +248,7 @@ static int MemoryToDirect(int* pids, int pid_counter, int is_one_shot, uint8_t**
 static int MemoryToMemory(int* pids, int pid_counter, int is_one_shot, uint8_t** input_buffer, uint8_t** output_buffer) {
     long file_size, position = 0;
     uint8_t ts_packet[TS_PACKET_SIZE];
-    int matched = 0, stop = 0, section_bytes = 0, expected_length = -1;
+    int matched = 0, stop = 0, collecting = 0, bytes_collected = 0, expected_length = -1;
 
     int ret = ReadFromMemory(input_buffer, &file_size);
     if (ret != 1) return ret;
@@ -186,14 +270,43 @@ static int MemoryToMemory(int* pids, int pid_counter, int is_one_shot, uint8_t**
                 WriteToMemory(*output_buffer, &position, ts_packet);
 
                 if (is_one_shot) {
-                    int payload_size = TS_PACKET_SIZE - 4;
-                    section_bytes += payload_size;
-
-                    if (expected_length < 0 && section_bytes >= 3) {
-                        expected_length = 3 + (((ts_packet[5] & 0x0F) << 8) | ts_packet[6]);
+                    int adaptation_length = 0;
+                    if (ts_packet[3] & 0x20) {
+                        adaptation_length = 1 + ts_packet[4];
                     }
 
-                    if (expected_length > 0 && section_bytes >= expected_length) {
+                    int payload_offset = 4 + adaptation_length;
+                    if (payload_offset >= TS_PACKET_SIZE)
+                        break;
+
+                    if (ts_packet[1] & 0x40) {
+                        uint8_t pointer = ts_packet[payload_offset];
+                        payload_offset += 1 + pointer;
+                        printf("DEBUG: Payload offset is %d\n", payload_offset);
+
+                        collecting = 1;
+                        bytes_collected = 0;
+                        expected_length = -1;
+                    }
+
+                    if (!collecting)
+                        break;
+
+                    int payload_size = TS_PACKET_SIZE - payload_offset;
+                    if (payload_size <= 0)
+                        break;
+
+                    uint8_t *payload = ts_packet + payload_offset;
+
+                    if (expected_length < 0 && payload_size >= 3) {
+                        int section_length = ((payload[1] & 0x0F) << 8) | payload[2];
+                        expected_length = 3 + section_length;
+                        printf("DEBUG: Expected lenght is %d\n", expected_length);
+                    }
+
+                    bytes_collected += payload_size;
+
+                    if (expected_length > 0 && bytes_collected >= expected_length) {
                         stop = 1;
                         break;
                     }
